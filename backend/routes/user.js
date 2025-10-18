@@ -1,16 +1,27 @@
+// routes/user.js
+// -----------------------------
+// Mô tả: File định nghĩa các route (đường dẫn API) cho user
+// -----------------------------
+
 const express = require('express');
 const router = express.Router();
 
-let users = []; // mảng tạm
+// Import các hàm xử lý từ controller
+const { getUsers, createUser } = require('../controllers/userController');
 
-router.get('/users', (req, res) => {
-  res.json(users);
-});
+/**
+ * @route   GET /users
+ * @desc    Lấy danh sách tất cả người dùng (users)
+ * @access  Public
+ */
+router.get('/', getUsers);
 
-router.post('/users', (req, res) => {
-  const newUser = req.body;
-  users.push(newUser);
-  res.json(newUser);
-});
+/**
+ * @route   POST /users
+ * @desc    Thêm người dùng mới
+ * @access  Public
+ */
+router.post('/', createUser);
 
+// Export router để sử dụng trong server.js
 module.exports = router;
