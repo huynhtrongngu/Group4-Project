@@ -11,6 +11,10 @@ const userSchema = new mongoose.Schema(
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Email is invalid'],
     },
+    // Store a password hash for authentication. Optional to keep compatibility with existing demo routes
+    passwordHash: { type: String, select: false },
+    // Simple role support for future authorization
+    role: { type: String, enum: ['user', 'admin'], default: 'user' },
   },
   { timestamps: true }
 );
