@@ -89,8 +89,8 @@ export default function App() {
         )}
 
         {view === 'login' && (
-          <section className="grid-2">
-            <div className="panel appear-up">
+          <section className="grid-login">
+            <div className="panel appear-up panel--auth">
               <div className="panel__header">
                 <h3 className="panel__title">Form đăng nhập</h3>
               </div>
@@ -98,7 +98,7 @@ export default function App() {
                 <Login onLoggedIn={handleLoggedIn} prefillEmail={prefillEmail} />
               </div>
             </div>
-            <div className="panel appear-up delay-1">
+            <div className="panel appear-up delay-1 panel--token">
               <div className="panel__header">
                 <h3 className="panel__title">JWT token</h3>
               </div>
