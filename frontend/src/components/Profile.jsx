@@ -96,6 +96,7 @@ export default function Profile({ currentUser, onProfileChange, onAuthError }) {
 
   const submit = async (e) => {
     e.preventDefault();
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) {
       setFeedback({ text: "Chưa có token. Hãy đăng nhập lại.", tone: "error" });
       return;
