@@ -13,6 +13,8 @@ const userSchema = new mongoose.Schema(
     },
     passwordHash: { type: String, select: false },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    phone: { type: String, trim: true, maxlength: 30 },
+    bio: { type: String, trim: true, maxlength: 500 },
   },
   { timestamps: true }
 );
