@@ -23,12 +23,18 @@ export default function AddUser({ onAdded, editUser, onCancelEdit }) {
     e.preventDefault();
     setSaving(true);
     try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
       if (editUser) {
         // Update existing user
-  await axios.put(`${API_BASE}/users/${editUser._id}`, form);
+        if (!token) {
+          alert("Bạn cần đăng nhập trước khi chỉnh sửa user.");
+          return;
+        }
+        await axios.put(`${API_BASE}/users/${editUser._id}`, form, { headers });
       } else {
         // Add new user
-        await axios.post(`${API_BASE}/users`, form);
+        await axios.post(`${API_BASE}/users`, form, headers ? { headers } : undefined);
       }
       onAdded?.();
       setForm({ name: "", email: "" });

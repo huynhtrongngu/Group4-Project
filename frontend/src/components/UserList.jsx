@@ -23,11 +23,22 @@ export default function UserList({ onEdit }) {
     let cancelled = false;
     const load = async () => {
       try {
-  const res = await axios.get(`${API_BASE}/users`);
-  if (!cancelled) setUsers((res.data || []).map((u) => ({ ...u, _id: String(u._id || u.id || "") })));
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        if (!token) {
+          alert("Bạn cần đăng nhập bằng tài khoản admin.");
+          if (!cancelled) setUsers([]);
+          return;
+        }
+        const res = await axios.get(`${API_BASE}/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 8000,
+        });
+        if (!cancelled) setUsers((res.data || []).map((u) => ({ ...u, _id: String(u._id || u.id || "") })));
       } catch (err) {
         console.error(err);
-        alert("Không tải được users");
+        const status = err?.response?.status;
+        const message = status === 403 ? "Chỉ admin mới xem được danh sách" : "Không tải được users";
+        alert(message);
         if (!cancelled) setUsers([]);
       } finally {
         if (!cancelled) setLoading(false);
@@ -43,9 +54,16 @@ export default function UserList({ onEdit }) {
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc muốn xóa user này?")) return;
     try {
-  await axios.delete(`${API_BASE}/users/${id}`);
-  const idStr = String(id);
-  setUsers(users.filter(user => String(user._id) !== idStr));
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      if (!token) {
+        alert("Bạn cần đăng nhập bằng tài khoản hợp lệ.");
+        return;
+      }
+      await axios.delete(`${API_BASE}/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const idStr = String(id);
+      setUsers(users.filter(user => String(user._id) !== idStr));
     } catch (err) {
       console.error(err);
       alert("Xóa user thất bại");
