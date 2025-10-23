@@ -10,6 +10,7 @@ function sanitize(userDoc) {
     role: userDoc.role,
     phone: userDoc.phone || '',
     bio: userDoc.bio || '',
+    avatarUrl: userDoc.avatarUrl || '',
     createdAt: userDoc.createdAt,
     updatedAt: userDoc.updatedAt,
   };

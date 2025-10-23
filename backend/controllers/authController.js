@@ -2,6 +2,8 @@ require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
+const { sendMail } = require('../utils/email');
 
 // Reuse the database service by connecting to the same MongoDB here (simple setup)
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/group4_project';
@@ -41,6 +43,7 @@ async function signup(req, res) {
       role: user.role,
       phone: user.phone || '',
       bio: user.bio || '',
+      avatarUrl: user.avatarUrl || '',
       createdAt: user.createdAt,
     };
     return res.status(201).json({ message: 'Đăng ký thành công', user: safeUser });
@@ -73,6 +76,7 @@ async function login(req, res) {
       role: user.role,
       phone: user.phone || '',
       bio: user.bio || '',
+      avatarUrl: user.avatarUrl || '',
     };
     return res.json({ message: 'Đăng nhập thành công', token, user: safeUser });
   } catch (err) {
@@ -88,3 +92,65 @@ async function logout(req, res) {
 }
 
 module.exports = { signup, login, logout };
+// --- Forgot/Reset Password ---
+async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ message: 'Email là bắt buộc' });
+    const normalized = String(email).toLowerCase().trim();
+    const user = await User.findOne({ email: normalized }).select('+resetPasswordTokenHash +resetPasswordExpiresAt');
+    if (!user) {
+      // Do not reveal existence of email
+      return res.json({ message: 'Nếu email tồn tại, liên kết đặt lại đã được gửi.' });
+    }
+
+    const token = crypto.randomBytes(20).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    user.resetPasswordTokenHash = tokenHash;
+    user.resetPasswordExpiresAt = expiresAt;
+    await user.save();
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${token}`;
+
+    const subject = 'Đặt lại mật khẩu';
+    const text = `Bạn đã yêu cầu đặt lại mật khẩu. Dùng mã sau hoặc mở liên kết trong vòng 60 phút.\n\nToken: ${token}\nLink: ${resetLink}`;
+    const html = `<p>Bạn đã yêu cầu đặt lại mật khẩu.</p><p><strong>Token:</strong> ${token}</p><p><a href="${resetLink}">Nhấn để đặt lại mật khẩu</a> (hết hạn sau 60 phút)</p>`;
+
+    try { await sendMail({ to: normalized, subject, text, html }); } catch (e) { console.warn('[sendMail] failed or dev fallback used:', e.message); }
+
+    const devPayload = process.env.NODE_ENV !== 'production' ? { devToken: token } : {};
+    return res.json({ message: 'Nếu email tồn tại, liên kết đặt lại đã được gửi.', ...devPayload });
+  } catch (err) {
+    console.error('[forgotPassword] error', err);
+    return res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
+}
+
+async function resetPassword(req, res) {
+  try {
+    const { token, password } = req.body || {};
+    if (!token || !password) return res.status(400).json({ message: 'token và password là bắt buộc' });
+    if (String(password).length < 6) return res.status(400).json({ message: 'Mật khẩu phải tối thiểu 6 ký tự' });
+
+    const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
+    const now = new Date();
+    const user = await User.findOne({ resetPasswordTokenHash: tokenHash, resetPasswordExpiresAt: { $gt: now } }).select('+passwordHash +resetPasswordTokenHash +resetPasswordExpiresAt');
+    if (!user) return res.status(400).json({ message: 'Token không hợp lệ hoặc đã hết hạn' });
+
+    user.passwordHash = await bcrypt.hash(String(password), 10);
+    user.resetPasswordTokenHash = undefined;
+    user.resetPasswordExpiresAt = undefined;
+    await user.save();
+
+    return res.json({ message: 'Đổi mật khẩu thành công. Hãy đăng nhập lại.' });
+  } catch (err) {
+    console.error('[resetPassword] error', err);
+    return res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
+}
+
+module.exports.forgotPassword = forgotPassword;
+module.exports.resetPassword = resetPassword;

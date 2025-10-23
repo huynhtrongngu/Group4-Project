@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const path = require('path');
 const app = express();
 
 app.use(cors());
@@ -45,6 +46,14 @@ app.use('/', ensureDb, authRoute);
 // Profile routes (yêu cầu token)
 const profileRoute = require('./routes/profile');
 app.use('/', ensureDb, profileRoute);
+
+// Static serve for uploaded files
+const { uploadRoot } = require('./middleware/upload');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Upload routes (yêu cầu token)
+const uploadRoute = require('./routes/upload');
+app.use('/', ensureDb, uploadRoute);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

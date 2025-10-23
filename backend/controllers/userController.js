@@ -11,6 +11,7 @@ function sanitize(userDoc) {
     role,
     phone: userDoc.phone || '',
     bio: userDoc.bio || '',
+    avatarUrl: userDoc.avatarUrl || '',
     createdAt,
     updatedAt,
   };
@@ -20,7 +21,7 @@ function sanitize(userDoc) {
 async function getUsers(req, res) {
   try {
     const users = await User.find()
-      .select('name email role createdAt updatedAt')
+      .select('name email role avatarUrl createdAt updatedAt')
       .sort({ createdAt: -1 })
       .lean();
     return res.json(users.map(sanitize));
