@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 
-// base API URL: use REACT_APP_API_URL when provided (e.g. http://192.168.x.y:3000)
-const API_BASE = process.env.REACT_APP_API_URL?.replace(/\/$/, "") || "";
+const _envApi = process.env.REACT_APP_API_URL;
+const API_BASE = _envApi ? _envApi.replace(/\/$/, "") : (process.env.NODE_ENV === "development" ? "http://localhost:3000" : "");
 
 export default function UserList({ onEdit }) {
   const [users, setUsers] = useState([]);
@@ -23,8 +23,8 @@ export default function UserList({ onEdit }) {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/users`);
-        if (!cancelled) setUsers(res.data || []);
+  const res = await axios.get(`${API_BASE}/users`);
+  if (!cancelled) setUsers((res.data || []).map((u) => ({ ...u, _id: String(u._id || u.id || "") })));
       } catch (err) {
         console.error(err);
         alert("Không tải được users");
@@ -43,8 +43,9 @@ export default function UserList({ onEdit }) {
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc muốn xóa user này?")) return;
     try {
-      await axios.delete(`${API_BASE}/users/${id}`);
-      setUsers(users.filter(user => user._id !== id));
+  await axios.delete(`${API_BASE}/users/${id}`);
+  const idStr = String(id);
+  setUsers(users.filter(user => String(user._id) !== idStr));
     } catch (err) {
       console.error(err);
       alert("Xóa user thất bại");
