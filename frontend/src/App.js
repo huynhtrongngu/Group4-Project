@@ -3,14 +3,17 @@ import UserList from "./components/UserList";
 import AddUser from "./components/AddUser";
 import Signup from "./components/Signup";
 import Login from "./components/Login";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 import Profile from "./components/Profile";
 
 export default function App() {
   const [reloadKey, setReloadKey] = useState(0);
   const [editUser, setEditUser] = useState(null);
   const [authUser, setAuthUser] = useState(null);
-  const [view, setView] = useState('login'); // 'login' | 'signup' | 'dashboard' | 'profile'
+  const [view, setView] = useState('login'); // 'login' | 'signup' | 'dashboard' | 'profile' | 'forgot' | 'reset'
   const [prefillEmail, setPrefillEmail] = useState('');
+  const [resetToken, setResetToken] = useState('');
 
   const handleEdit = (user) => {
     setEditUser(user);
@@ -97,7 +100,7 @@ export default function App() {
                 <h3 className="panel__title">Form đăng nhập</h3>
               </div>
               <div className="panel__body">
-                <Login onLoggedIn={handleLoggedIn} prefillEmail={prefillEmail} />
+                <Login onLoggedIn={handleLoggedIn} prefillEmail={prefillEmail} onForgot={() => setView('forgot')} />
               </div>
             </div>
             <div className="panel appear-up delay-1 panel--token">
@@ -107,6 +110,32 @@ export default function App() {
               <div className="panel__body">
                 <p>Token được lưu ở localStorage:</p>
                 <code>{localStorage.getItem('token') || 'Chưa có token'}</code>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {view === 'forgot' && (
+          <section className="grid-login">
+            <div className="panel appear-up panel--auth">
+              <div className="panel__header">
+                <h3 className="panel__title">Quên mật khẩu</h3>
+              </div>
+              <div className="panel__body">
+                <ForgotPassword onShowReset={(t)=>{ setResetToken(t||''); setView('reset'); }} />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {view === 'reset' && (
+          <section className="grid-login">
+            <div className="panel appear-up panel--auth">
+              <div className="panel__header">
+                <h3 className="panel__title">Đổi mật khẩu</h3>
+              </div>
+              <div className="panel__body">
+                <ResetPassword initialToken={resetToken} onDone={() => setView('login')} />
               </div>
             </div>
           </section>

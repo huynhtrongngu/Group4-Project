@@ -16,6 +16,8 @@ export default function Profile({ currentUser, onProfileChange, onAuthError }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState({ text: "", tone: "" });
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -167,14 +169,18 @@ export default function Profile({ currentUser, onProfileChange, onAuthError }) {
           {!loading && profile && (
             <div className="profile-summary">
               <div className="profile-header-card">
-                <div className="profile-avatar" aria-hidden>
-                  {(profile.name || profile.email || "?")
-                    .split(/\s+/)
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((part) => part[0]?.toUpperCase())
-                    .join('') || '?'}
-                </div>
+                {profile.avatarUrl ? (
+                  <img className="profile-avatar profile-avatar--image" src={profile.avatarUrl} alt="avatar" />
+                ) : (
+                  <div className="profile-avatar" aria-hidden>
+                    {(profile.name || profile.email || "?")
+                      .split(/\s+/)
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((part) => part[0]?.toUpperCase())
+                      .join('') || '?'}
+                  </div>
+                )}
                 <div className="profile-header-card__meta">
                   <h4 className="profile-header-card__name">{profile.name || 'Người dùng chưa đặt tên'}</h4>
                   <a className="profile-header-card__email" href={`mailto:${profile.email}`}>{profile.email}</a>
@@ -299,6 +305,45 @@ export default function Profile({ currentUser, onProfileChange, onAuthError }) {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <div className="panel appear-up delay-2">
+        <div className="panel__header">
+          <h3 className="panel__title">Upload Avatar</h3>
+        </div>
+        <div className="panel__body">
+          <div className="field">
+            <label className="label" htmlFor="avatar">Chọn ảnh</label>
+            <input id="avatar" type="file" accept="image/*" onChange={(e)=>setAvatarFile(e.target.files?.[0]||null)} />
+          </div>
+          <button className="button" disabled={!avatarFile || uploading} onClick={async ()=>{
+            const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+            if (!token) { setFeedback({ text: 'Bạn cần đăng nhập.', tone: 'error' }); return; }
+            if (!avatarFile) return;
+            setUploading(true);
+            setFeedback({ text: '', tone: '' });
+            try {
+              const fd = new FormData();
+              fd.append('avatar', avatarFile);
+              const res = await axios.post(`${API_BASE}/upload-avatar`, fd, {
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+              });
+              const url = res.data?.avatarUrl;
+              if (url) {
+                const updated = { ...(profile||{}), avatarUrl: url };
+                setProfile(updated);
+                onProfileChange?.(updated);
+              }
+              setFeedback({ text: res.data?.message || 'Upload thành công', tone: 'success' });
+              setAvatarFile(null);
+              (document.getElementById('avatar')||{}).value = '';
+            } catch (err) {
+              setFeedback({ text: err?.response?.data?.message || 'Upload thất bại', tone: 'error' });
+            } finally {
+              setUploading(false);
+            }
+          }}>{uploading? 'Đang tải lên...' : 'Tải lên'}</button>
         </div>
       </div>
     </section>
