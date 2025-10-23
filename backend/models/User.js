@@ -15,6 +15,12 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     phone: { type: String, trim: true, maxlength: 30 },
     bio: { type: String, trim: true, maxlength: 500 },
+    // Avatar fields
+    avatarUrl: { type: String, trim: true },
+    avatarPublicId: { type: String, trim: true },
+    // Password reset
+    resetPasswordTokenHash: { type: String, select: false },
+    resetPasswordExpiresAt: { type: Date },
   },
   { timestamps: true }
 );
