@@ -19,6 +19,15 @@ export default function UserList({ onEdit }) {
     }
   };
 
+  const getAvatarUrl = (u) => {
+    const url = u?.avatarUrl;
+    if (!url) return null;
+    // If backend returns relative path like /uploads/..., prefix with API_BASE when set
+    if (/^https?:\/\//i.test(url)) return url;
+    if (API_BASE) return `${API_BASE}${url.startsWith('/') ? url : '/'+url}`;
+    return url; // rely on dev proxy
+  };
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -88,7 +97,11 @@ export default function UserList({ onEdit }) {
         >
           <div className="item__row">
             <div className="item__main">
-              <div className="avatar" aria-hidden>{getInitials(u.name)}</div>
+              {getAvatarUrl(u) ? (
+                <img className="avatar avatar--image" src={getAvatarUrl(u)} alt={u.name||'avatar'} />
+              ) : (
+                <div className="avatar" aria-hidden>{getInitials(u.name)}</div>
+              )}
               <div>
                 <div className="item__name">{u.name}</div>
                 <div className="meta">{u.email}</div>

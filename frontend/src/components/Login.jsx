@@ -4,7 +4,7 @@ import axios from "axios";
 const _envApi = process.env.REACT_APP_API_URL;
 const API_BASE = _envApi ? _envApi.replace(/\/$/, "") : (process.env.NODE_ENV === "development" ? "http://localhost:3000" : "");
 
-export default function Login({ onLoggedIn, prefillEmail }) {
+export default function Login({ onLoggedIn, prefillEmail, onForgot }) {
   const rememberedEmail = useMemo(() => {
     if (typeof window === "undefined") return "";
     return localStorage.getItem("rememberedEmail") || "";
@@ -113,7 +113,7 @@ export default function Login({ onLoggedIn, prefillEmail }) {
             />
             <span>Ghi nhớ email lần sau</span>
           </label>
-          <button type="button" className="link-button" onClick={() => alert("Vui lòng liên hệ quản trị viên để đặt lại mật khẩu.")}>Quên mật khẩu?</button>
+          <button type="button" className="link-button" onClick={() => onForgot?.()}>Quên mật khẩu?</button>
         </div>
 
         <button type="submit" className="button" disabled={loading}>
