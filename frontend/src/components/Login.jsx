@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
-const API_BASE = process.env.REACT_APP_API_URL?.replace(/\/$/, "") || "";
+const _envApi = process.env.REACT_APP_API_URL;
+const API_BASE = _envApi ? _envApi.replace(/\/$/, "") : (process.env.NODE_ENV === "development" ? "http://localhost:3000" : "");
 
 export default function Login({ onLoggedIn, prefillEmail }) {
   const rememberedEmail = useMemo(() => {

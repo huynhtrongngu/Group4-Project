@@ -1,7 +1,10 @@
 import { useState } from "react";
 import axios from "axios";
 
-const API_BASE = process.env.REACT_APP_API_URL?.replace(/\/$/, "") || "";
+// Default to REACT_APP_API_URL when provided; in development fall back to localhost:3000
+// This avoids issues when the dev proxy isn't active or the app is opened without the CRA dev server.
+const _envApi = process.env.REACT_APP_API_URL;
+const API_BASE = _envApi ? _envApi.replace(/\/$/, "") : (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : '');
 
 export default function Signup({ onSignedUp }) {
   const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
@@ -17,13 +20,17 @@ export default function Signup({ onSignedUp }) {
     try {
       if (!form.password || form.password.length < 6) {
         setMessage("Mật khẩu phải có ít nhất 6 ký tự");
+        setLoading(false);
         return;
       }
       if (form.password !== form.confirmPassword) {
         setMessage("Mật khẩu nhập lại không khớp");
+        setLoading(false);
         return;
       }
-      const res = await axios.post(`${API_BASE}/signup`, form);
+      // Only send required fields to the backend
+      const payload = { name: form.name, email: form.email, password: form.password };
+      const res = await axios.post(`${API_BASE}/signup`, payload);
       const createdEmail = form.email;
       setMessage(res.data?.message || "Tạo tài khoản thành công");
       // Đợi người dùng nhìn thấy thông báo, rồi chuyển sang trang Đăng nhập và tự điền email
@@ -32,7 +39,9 @@ export default function Signup({ onSignedUp }) {
       }, 1200);
       setForm({ name: "", email: "", password: "", confirmPassword: "" });
     } catch (err) {
-      setMessage(err?.response?.data?.message || "Đăng ký thất bại");
+      // Show backend error message when available, else a network/axios message
+      const errMsg = err?.response?.data?.message || err?.message || "Đăng ký thất bại";
+      setMessage(errMsg);
     } finally {
       setLoading(false);
     }

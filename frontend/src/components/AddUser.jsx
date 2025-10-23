@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-const API_BASE = process.env.REACT_APP_API_URL?.replace(/\/$/, "") || "";
+const _envApi = process.env.REACT_APP_API_URL;
+const API_BASE = _envApi ? _envApi.replace(/\/$/, "") : (process.env.NODE_ENV === "development" ? "http://localhost:3000" : "");
 
 export default function AddUser({ onAdded, editUser, onCancelEdit }) {
   const [form, setForm] = useState({ name: "", email: "" });
@@ -24,7 +25,7 @@ export default function AddUser({ onAdded, editUser, onCancelEdit }) {
     try {
       if (editUser) {
         // Update existing user
-        await axios.put(`${API_BASE}/users/${editUser._id}`, form);
+  await axios.put(`${API_BASE}/users/${editUser._id}`, form);
       } else {
         // Add new user
         await axios.post(`${API_BASE}/users`, form);
@@ -33,7 +34,7 @@ export default function AddUser({ onAdded, editUser, onCancelEdit }) {
       setForm({ name: "", email: "" });
       onCancelEdit?.();
     } catch (e) {
-      alert(e?.response?.data?.message || (editUser ? "Cập nhật user thất bại" : "Thêm user thất bại"));
+  alert(e?.response?.data?.message || (editUser ? "Cập nhật user thất bại" : "Thêm user thất bại"));
     } finally {
       setSaving(false);
     }

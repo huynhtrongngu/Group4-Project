@@ -3,12 +3,13 @@ import UserList from "./components/UserList";
 import AddUser from "./components/AddUser";
 import Signup from "./components/Signup";
 import Login from "./components/Login";
+import Profile from "./components/Profile";
 
 export default function App() {
   const [reloadKey, setReloadKey] = useState(0);
   const [editUser, setEditUser] = useState(null);
   const [authUser, setAuthUser] = useState(null);
-  const [view, setView] = useState('login'); // 'login' | 'signup' | 'dashboard'
+  const [view, setView] = useState('login'); // 'login' | 'signup' | 'dashboard' | 'profile'
   const [prefillEmail, setPrefillEmail] = useState('');
 
   const handleEdit = (user) => {
@@ -52,6 +53,7 @@ export default function App() {
         <p className="muted">Quản lý người dùng đơn giản</p>
         <div className="nav">
           <button className={`nav__item ${view==='dashboard'?'active':''}`} onClick={() => setView('dashboard')}>Dashboard</button>
+          <button className={`nav__item ${view==='profile'?'active':''}`} onClick={() => setView('profile')}>Profile</button>
           <button className={`nav__item ${view==='login'?'active':''}`} onClick={() => setView('login')}>Đăng nhập</button>
           <button className={`nav__item ${view==='signup'?'active':''}`} onClick={() => setView('signup')}>Đăng ký</button>
         </div>
@@ -145,6 +147,14 @@ export default function App() {
               </div>
             </section>
           </>
+        )}
+
+        {view === 'profile' && (
+          <Profile
+            currentUser={authUser}
+            onProfileChange={setAuthUser}
+            onAuthError={handleLogout}
+          />
         )}
       </div>
     </div>
