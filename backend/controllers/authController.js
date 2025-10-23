@@ -34,7 +34,15 @@ async function signup(req, res) {
     const user = await User.create({ name, email, passwordHash, role: role === 'admin' ? 'admin' : 'user' });
 
     // Do not include passwordHash in response
-    const safeUser = { _id: user._id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt };
+    const safeUser = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone || '',
+      bio: user.bio || '',
+      createdAt: user.createdAt,
+    };
     return res.status(201).json({ message: 'Đăng ký thành công', user: safeUser });
   } catch (err) {
     if (err?.code === 11000) return res.status(409).json({ message: 'Email đã tồn tại' });
@@ -58,7 +66,14 @@ async function login(req, res) {
     if (!ok) return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng' });
 
     const token = jwt.sign({ sub: user._id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-    const safeUser = { _id: user._id, name: user.name, email: user.email, role: user.role };
+    const safeUser = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone || '',
+      bio: user.bio || '',
+    };
     return res.json({ message: 'Đăng nhập thành công', token, user: safeUser });
   } catch (err) {
     console.error('[login] error', err);

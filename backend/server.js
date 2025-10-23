@@ -28,7 +28,7 @@ app.get('/health', (req, res) => {
 
 // Existing demo routes
 const userRoute = require('./routes/user');
-app.use('/', userRoute);
+app.use('/', ensureDb, userRoute);
 
 // Middleware to ensure DB is up before auth routes
 function ensureDb(req, res, next) {
@@ -41,6 +41,10 @@ function ensureDb(req, res, next) {
 // Auth routes
 const authRoute = require('./routes/auth');
 app.use('/', ensureDb, authRoute);
+
+// Profile routes (yêu cầu token)
+const profileRoute = require('./routes/profile');
+app.use('/', ensureDb, profileRoute);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
