@@ -1,8 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
-
-const _envApi = process.env.REACT_APP_API_URL;
-const API_BASE = _envApi ? _envApi.replace(/\/$/, "") : (process.env.NODE_ENV === "development" ? "http://localhost:3000" : "");
+import api from "../api";
 
 export default function AddUser({ onAdded, editUser, onCancelEdit }) {
   const [form, setForm] = useState({ name: "", email: "" });
@@ -24,17 +21,17 @@ export default function AddUser({ onAdded, editUser, onCancelEdit }) {
     setSaving(true);
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      const headers = undefined; // handled by interceptor
       if (editUser) {
         // Update existing user
         if (!token) {
           alert("Bạn cần đăng nhập trước khi chỉnh sửa user.");
           return;
         }
-        await axios.put(`${API_BASE}/users/${editUser._id}`, form, { headers });
+        await api.put(`/users/${editUser._id}`, form, { headers });
       } else {
         // Add new user
-        await axios.post(`${API_BASE}/users`, form, headers ? { headers } : undefined);
+        await api.post(`/users`, form, headers ? { headers } : undefined);
       }
       onAdded?.();
       setForm({ name: "", email: "" });

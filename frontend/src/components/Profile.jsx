@@ -1,8 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import axios from "axios";
-
-const _envApi = process.env.REACT_APP_API_URL;
-const API_BASE = _envApi ? _envApi.replace(/\/$/, "") : (process.env.NODE_ENV === "development" ? "http://localhost:3000" : "");
+import { useCallback, useEffect, useRef, useState } from "react";
+import api, { API_BASE } from "../api";
 
 export default function Profile({ currentUser, onProfileChange, onAuthError }) {
   const [profile, setProfile] = useState(currentUser || null);
@@ -32,20 +29,28 @@ export default function Profile({ currentUser, onProfileChange, onAuthError }) {
     }
   }, [currentUser]);
 
+  const inFlightRef = useRef(false);
+  const lastFetchAtRef = useRef(0);
+
   const fetchProfile = useCallback(async (showSpinner = true) => {
+    const now = Date.now();
+    // Chặn spam: nếu đang gọi hoặc gọi quá dày (< 1200ms) thì bỏ qua
+    if (inFlightRef.current || now - lastFetchAtRef.current < 1200) {
+      return;
+    }
+    inFlightRef.current = true;
+    lastFetchAtRef.current = now;
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) {
       setProfile(null);
       setFeedback({ text: "Bạn cần đăng nhập để xem thông tin cá nhân.", tone: "error" });
+      inFlightRef.current = false;
       return;
     }
     if (showSpinner) setLoading(true);
     setFeedback({ text: "", tone: "" });
     try {
-      const res = await axios.get(`${API_BASE}/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 8000,
-      });
+      const res = await api.get(`/profile`, { timeout: 8000 });
       const user = res.data?.user;
       setProfile(user || null);
       if (user) {
@@ -56,7 +61,17 @@ export default function Profile({ currentUser, onProfileChange, onAuthError }) {
           bio: user.bio || "",
           password: "",
         });
-        onProfileChange?.(user);
+        // Chỉ báo lên parent khi dữ liệu thực sự thay đổi để tránh loop render → fetch
+        const a = currentUser || {};
+        const b = user || {};
+        const same = String(a._id||"") === String(b._id||"")
+          && String(a.name||"") === String(b.name||"")
+          && String(a.email||"") === String(b.email||"")
+          && String(a.phone||"") === String(b.phone||"")
+          && String(a.bio||"") === String(b.bio||"")
+          && String(a.avatarUrl||"") === String(b.avatarUrl||"")
+          && String(a.role||"") === String(b.role||"");
+        if (!same) onProfileChange?.(user);
       }
     } catch (err) {
       const status = err?.response?.status;
@@ -71,13 +86,18 @@ export default function Profile({ currentUser, onProfileChange, onAuthError }) {
       }
     } finally {
       if (showSpinner) setLoading(false);
+      inFlightRef.current = false;
     }
   }, [onProfileChange, onAuthError]);
 
+  // Chỉ fetch 1 lần khi chưa có currentUser; tránh fetch lại khi parent set currentUser (ngăn vòng lặp)
+  const didInitRef = useRef(false);
   useEffect(() => {
-    // Nếu đã có currentUser (từ lúc đăng nhập), hiển thị ngay và refresh nền
-    // để tránh treo spinner khi token hợp lệ nhưng mạng chậm.
-    fetchProfile(!currentUser); // chỉ show spinner nếu chưa có dữ liệu ban đầu
+    if (didInitRef.current) return;
+    didInitRef.current = true;
+    if (!currentUser) {
+      fetchProfile(true);
+    }
   }, [fetchProfile, currentUser]);
 
   const change = (e) => {
@@ -123,9 +143,7 @@ export default function Profile({ currentUser, onProfileChange, onAuthError }) {
         return;
       }
 
-      const res = await axios.put(`${API_BASE}/profile`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.put(`/profile`, payload);
       const user = res.data?.user;
       setProfile(user || null);
       setForm({
@@ -326,9 +344,7 @@ export default function Profile({ currentUser, onProfileChange, onAuthError }) {
             try {
               const fd = new FormData();
               fd.append('avatar', avatarFile);
-              const res = await axios.post(`${API_BASE}/upload-avatar`, fd, {
-                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
-              });
+              const res = await api.post(`/upload-avatar`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
               const url = res.data?.avatarUrl;
               if (url) {
                 const updated = { ...(profile||{}), avatarUrl: url };

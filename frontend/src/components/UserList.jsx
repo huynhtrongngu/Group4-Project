@@ -1,8 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import axios from "axios";
-
-const _envApi = process.env.REACT_APP_API_URL;
-const API_BASE = _envApi ? _envApi.replace(/\/$/, "") : (process.env.NODE_ENV === "development" ? "http://localhost:3000" : "");
+import api, { API_BASE } from "../api";
 
 export default function UserList({ onEdit }) {
   const [users, setUsers] = useState([]);
@@ -38,10 +35,7 @@ export default function UserList({ onEdit }) {
           if (!cancelled) setUsers([]);
           return;
         }
-        const res = await axios.get(`${API_BASE}/users`, {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 8000,
-        });
+        const res = await api.get(`/users`, { timeout: 8000 });
         if (!cancelled) setUsers((res.data || []).map((u) => ({ ...u, _id: String(u._id || u.id || "") })));
       } catch (err) {
         console.error(err);
@@ -68,9 +62,7 @@ export default function UserList({ onEdit }) {
         alert("Bạn cần đăng nhập bằng tài khoản hợp lệ.");
         return;
       }
-      await axios.delete(`${API_BASE}/users/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.delete(`/users/${id}`);
       const idStr = String(id);
       setUsers(users.filter(user => String(user._id) !== idStr));
     } catch (err) {

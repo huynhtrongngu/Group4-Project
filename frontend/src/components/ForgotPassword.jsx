@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "../api";
 
 const _envApi = process.env.REACT_APP_API_URL;
 const API_BASE = _envApi ? _envApi.replace(/\/$/, "") : (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : '');
@@ -16,7 +16,7 @@ export default function ForgotPassword({ onShowReset }) {
     setMessage("");
     setDevToken("");
     try {
-      const res = await axios.post(`${API_BASE}/forgot-password`, { email });
+  const res = await api.post(`/forgot-password`, { email });
       setMessage(res.data?.message || "Nếu email tồn tại, chúng tôi đã gửi liên kết đặt lại.");
       if (res.data?.devToken) setDevToken(res.data.devToken);
     } catch (err) {

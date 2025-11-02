@@ -1,4 +1,5 @@
 import { useState } from "react";
+import api from "./api";
 import UserList from "./components/UserList";
 import AddUser from "./components/AddUser";
 import Signup from "./components/Signup";
@@ -39,11 +40,12 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    // Remove token locally and optionally ping backend /logout for screenshots
-    localStorage.removeItem('token');
+    // Remove token locally and notify backend to revoke refresh token
+    const token = localStorage.getItem('token');
     try {
-      await fetch('/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      await api.post('/logout');
     } catch {}
+    localStorage.removeItem('token');
     setAuthUser(null);
     setView('login');
   };

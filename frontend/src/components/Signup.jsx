@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "../api";
 
 // Default to REACT_APP_API_URL when provided; in development fall back to localhost:3000
 // This avoids issues when the dev proxy isn't active or the app is opened without the CRA dev server.
@@ -30,7 +30,7 @@ export default function Signup({ onSignedUp }) {
       }
       // Only send required fields to the backend
       const payload = { name: form.name, email: form.email, password: form.password };
-      const res = await axios.post(`${API_BASE}/signup`, payload);
+  const res = await api.post(`/signup`, payload);
       const createdEmail = form.email;
       setMessage(res.data?.message || "Tạo tài khoản thành công");
       // Đợi người dùng nhìn thấy thông báo, rồi chuyển sang trang Đăng nhập và tự điền email
