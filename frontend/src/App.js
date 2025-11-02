@@ -57,16 +57,25 @@ export default function App() {
         <h1 className="brand">Users Admin</h1>
         <p className="muted">Quản lý người dùng đơn giản</p>
         <div className="nav">
-          <button className={`nav__item ${view==='dashboard'?'active':''}`} onClick={() => setView('dashboard')}>Dashboard</button>
-          <button className={`nav__item ${view==='profile'?'active':''}`} onClick={() => setView('profile')}>Profile</button>
-          <button className={`nav__item ${view==='login'?'active':''}`} onClick={() => setView('login')}>Đăng nhập</button>
-          <button className={`nav__item ${view==='signup'?'active':''}`} onClick={() => setView('signup')}>Đăng ký</button>
+          {(authUser && authUser.role === 'admin') && (
+            <button className={`nav__item ${view==='dashboard'?'active':''}`} onClick={() => setView('dashboard')}>Dashboard</button>
+          )}
+          {authUser && (
+            <button className={`nav__item ${view==='profile'?'active':''}`} onClick={() => setView('profile')}>Profile</button>
+          )}
+          {!authUser && (
+            <>
+              <button className={`nav__item ${view==='login'?'active':''}`} onClick={() => setView('login')}>Đăng nhập</button>
+              <button className={`nav__item ${view==='signup'?'active':''}`} onClick={() => setView('signup')}>Đăng ký</button>
+            </>
+          )}
         </div>
         <div className="sidebar__footer">
           MER Stack Demo
           {authUser ? (
             <div style={{ marginTop: 8 }}>
               <div className="meta">Hi, {authUser.name}</div>
+              <div className="meta">Role: <span className={`role-badge role-badge--${authUser.role}`}>{authUser.role}</span></div>
               <button className="button button--small" onClick={handleLogout}>Đăng xuất</button>
             </div>
           ) : null}
@@ -144,40 +153,58 @@ export default function App() {
         )}
 
         {view === 'dashboard' && (
-          <>
-            <section className="hero">
-              <div className="hero__text">
-                <h2>Xin chào 👋</h2>
-                <p>Thực hiện thêm, sửa, xóa và xem danh sách người dùng một cách trực quan.</p>
-              </div>
-              <div className="hero__art" aria-hidden />
-            </section>
+          (authUser && authUser.role === 'admin') ? (
+            <>
+              <section className="hero">
+                <div className="hero__text">
+                  <h2>Xin chào 👋</h2>
+                  <p>Quản trị người dùng (chỉ Admin).</p>
+                </div>
+                <div className="hero__art" aria-hidden />
+              </section>
 
-            <section className="grid-2">
-              <div className="panel appear-up">
-                <div className="panel__header">
-                  <h3 className="panel__title">Danh sách users</h3>
+              <section className="grid-2">
+                <div className="panel appear-up">
+                  <div className="panel__header">
+                    <h3 className="panel__title">Danh sách users</h3>
+                  </div>
+                  <div className="panel__body">
+                    <UserList key={reloadKey} onEdit={handleEdit} currentUser={authUser} />
+                  </div>
                 </div>
-                <div className="panel__body">
-                  <UserList key={reloadKey} onEdit={handleEdit} />
-                </div>
-              </div>
 
-              <div className="panel appear-up delay-1">
-                <div className="panel__header">
-                  <h3 className="panel__title">{editUser ? "Sửa user" : "Thêm user"}</h3>
-                  {editUser && <span className="tag">Đang sửa</span>}
-                </div>
-                <div className="panel__body">
-                  <AddUser
-                    onAdded={handleAdded}
-                    editUser={editUser}
-                    onCancelEdit={handleCancelEdit}
-                  />
-                </div>
+                {(authUser.role === 'admin') && (
+                  <div className="panel appear-up delay-1">
+                    <div className="panel__header">
+                      <h3 className="panel__title">{editUser ? "Sửa user" : "Thêm user"}</h3>
+                      {editUser && <span className="tag">Đang sửa</span>}
+                    </div>
+                    <div className="panel__body">
+                      <AddUser
+                        onAdded={handleAdded}
+                        editUser={editUser}
+                        onCancelEdit={handleCancelEdit}
+                        currentUser={authUser}
+                      />
+                    </div>
+                  </div>
+                )}
+              </section>
+            </>
+          ) : (
+            <div className="panel appear-up">
+              <div className="panel__header">
+                <h3 className="panel__title">Không có quyền truy cập</h3>
               </div>
-            </section>
-          </>
+              <div className="panel__body">
+                {authUser ? (
+                  <p>Bạn đang đăng nhập với vai trò <strong>{authUser.role}</strong>. Chỉ Admin mới xem được Dashboard quản lý người dùng.</p>
+                ) : (
+                  <p>Hãy đăng nhập để tiếp tục.</p>
+                )}
+              </div>
+            </div>
+          )
         )}
 
         {view === 'profile' && (

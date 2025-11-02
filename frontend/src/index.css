@@ -307,6 +307,11 @@ textarea.input {
   color: #1d4ed8;
   border: 1px solid rgba(37, 99, 235, 0.2);
 }
+.role-badge--moderator {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
 .profile-field {
   display: flex;
   flex-direction: column;

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import api, { API_BASE } from "../api";
 
-export default function UserList({ onEdit }) {
+export default function UserList({ onEdit, currentUser }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,6 +79,14 @@ export default function UserList({ onEdit }) {
   if (!users.length)
     return <div className="empty">Chưa có user nào. Hãy thêm mới ở khung bên cạnh.</div>;
 
+  const canEditOrDelete = (target) => {
+    const role = currentUser?.role;
+    if (!role) return false;
+    if (role === 'admin') return true;
+    // Moderators and users cannot edit/delete via user list
+    return false;
+  };
+
   return (
     <ul className="list">
       {users.map((u) => (
@@ -96,13 +104,15 @@ export default function UserList({ onEdit }) {
               )}
               <div>
                 <div className="item__name">{u.name}</div>
-                <div className="meta">{u.email}</div>
+                <div className="meta">{u.email} · <span className={`role-badge role-badge--${u.role}`}>{u.role}</span></div>
               </div>
             </div>
-            <div className="item__actions">
-              <button onClick={() => handleEdit(u)} className="button button--small">Sửa</button>
-              <button onClick={() => handleDelete(u._id)} className="button button--small button--danger">Xóa</button>
-            </div>
+            {canEditOrDelete(u) && (
+              <div className="item__actions">
+                <button onClick={() => handleEdit(u)} className="button button--small">Sửa</button>
+                <button onClick={() => handleDelete(u._id)} className="button button--small button--danger">Xóa</button>
+              </div>
+            )}
           </div>
         </li>
       ))}
