@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema(
       match: [/^\S+@\S+\.\S+$/, 'Email is invalid'],
     },
     passwordHash: { type: String, select: false },
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  role: { type: String, enum: ['user', 'moderator', 'admin'], default: 'user' },
     phone: { type: String, trim: true, maxlength: 30 },
     bio: { type: String, trim: true, maxlength: 500 },
     // Avatar fields

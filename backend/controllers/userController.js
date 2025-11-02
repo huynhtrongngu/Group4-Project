@@ -35,6 +35,10 @@ async function getUsers(req, res) {
 async function createUser(req, res) {
   try {
   const { name, email, role, phone, bio } = req.body || {};
+    const requester = req.user;
+    if (!requester || String(requester.role) !== 'admin') {
+      return res.status(403).json({ message: 'Chỉ admin được tạo user' });
+    }
     const trimmedName = typeof name === 'string' ? name.trim() : '';
     const trimmedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
@@ -50,7 +54,7 @@ async function createUser(req, res) {
     const payload = {
       name: trimmedName,
       email: trimmedEmail,
-      role: role === 'admin' ? 'admin' : 'user',
+      role: ['admin','moderator','user'].includes(role) ? role : 'user',
     };
 
     if (typeof phone === 'string' && phone.trim()) {
@@ -78,10 +82,20 @@ async function updateUser(req, res) {
   try {
   const { id } = req.params;
   const { name, email, role, phone, bio } = req.body || {};
+    const requester = req.user;
 
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: 'Không tìm thấy user' });
+    }
+
+    // Moderators cannot modify admins (unless it's themself which is unlikely)
+    if (String(requester?.role) === 'moderator' && String(user.role) === 'admin' && String(requester?._id) !== String(user._id)) {
+      return res.status(403).json({ message: 'Moderator không thể chỉnh sửa admin' });
+    }
+    // Normal users can only update themselves (middleware should enforce), double-check here
+    if (String(requester?.role) === 'user' && String(requester?._id) !== String(user._id)) {
+      return res.status(403).json({ message: 'Bạn không có quyền chỉnh sửa người dùng khác' });
     }
 
     if (typeof name === 'string') {
@@ -107,8 +121,19 @@ async function updateUser(req, res) {
       }
     }
 
-    if (typeof role === 'string' && ['admin', 'user'].includes(role)) {
-      user.role = role;
+    // Only admin can change role
+    if (typeof role === 'string') {
+      if (String(requester?.role) !== 'admin') {
+        // ignore role changes by non-admin
+      } else {
+        if (['admin','moderator','user'].includes(role)) {
+          // Không cho phép thay đổi vai trò của tài khoản admin (admin là cao nhất)
+          if (String(user.role) === 'admin' && role !== 'admin') {
+            return res.status(403).json({ message: 'Không thể thay đổi vai trò của admin' });
+          }
+          user.role = role;
+        }
+      }
     }
 
     if (typeof phone === 'string') {
@@ -143,6 +168,20 @@ async function updateUser(req, res) {
 async function deleteUser(req, res) {
   try {
     const { id } = req.params;
+    const requester = req.user;
+    const target = await User.findById(id);
+    if (!target) return res.status(404).json({ message: 'Không tìm thấy user' });
+
+    // Moderators cannot delete admins; users can delete only themselves
+    const requesterRole = String(requester?.role);
+    const isSelf = String(requester?._id) === String(target._id);
+    if (requesterRole === 'moderator' && String(target.role) === 'admin') {
+      return res.status(403).json({ message: 'Moderator không thể xóa admin' });
+    }
+    if (requesterRole === 'user' && !isSelf) {
+      return res.status(403).json({ message: 'Bạn không có quyền xóa người dùng khác' });
+    }
+
     const deleted = await User.findByIdAndDelete(id);
     if (!deleted) {
       return res.status(404).json({ message: 'Không tìm thấy user' });
