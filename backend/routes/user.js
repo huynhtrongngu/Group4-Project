@@ -4,6 +4,8 @@ const router = express.Router();
 const { getUsers, createUser, updateUser, deleteUser } = require('../controllers/userController');
 const requireAuth = require('../middleware/requireAuth');
 const { requireAdmin, checkRole, allowSelfOrRoles } = require('../middleware/rbac');
+const { upload } = require('../middleware/upload');
+const { uploadAvatar } = require('../controllers/uploadController');
 
 // GET /users - admin only
 router.get('/users', requireAuth, checkRole('admin'), getUsers);
@@ -16,5 +18,8 @@ router.put('/users/:id', requireAuth, checkRole('admin'), updateUser);
 
 // DELETE /users/:id - admin only
 router.delete('/users/:id', requireAuth, checkRole('admin'), deleteUser);
+
+// POST /users/avatar - authenticated user uploads avatar (Multer + Sharp + Cloudinary)
+router.post('/users/avatar', requireAuth, upload.single('avatar'), uploadAvatar);
 
 module.exports = router;

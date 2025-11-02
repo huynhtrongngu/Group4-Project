@@ -5,6 +5,7 @@ Routes:
 - POST /login: { email, password } -> 200 { message, token, user } and sets HttpOnly cookie `refreshToken`
 - POST /logout: -> 200 { message } and clears HttpOnly cookie, refresh token revoked
 - POST /refresh (alias: /auth/refresh): -> 200 { token } issues a new access token and rotates refresh cookie
+ - POST /users/avatar: multipart/form-data { avatar: <image> } (Bearer token) → uploads to Cloudinary and stores URL in MongoDB
 
 Roles & permissions:
 - Roles: user, moderator, admin
@@ -43,6 +44,18 @@ Env (.env):
 - REFRESH_TOKEN_EXPIRES_IN=7d
 - REFRESH_COOKIE_NAME=refreshToken
 - COOKIE_SECURE=false  # set true in production (HTTPS)
+
+Cloudinary (avatar upload):
+- CLOUDINARY_CLOUD_NAME=your_cloud_name
+- CLOUDINARY_API_KEY=xxxx
+- CLOUDINARY_API_SECRET=yyyy
+- CLOUDINARY_AVATAR_FOLDER=group4_project/avatars  # optional, default as shown
+
+How avatar upload works:
+- Frontend sends `POST /users/avatar` with field `avatar` (Content-Type: multipart/form-data).
+- Backend uses Multer (memory), Sharp to resize to 256x256 WEBP, then uploads to Cloudinary.
+- The secure URL is saved to `user.avatarUrl` and Cloudinary `public_id` to `user.avatarPublicId`.
+- If a previous avatar exists, it's cleaned up (local legacy files or Cloudinary destroy).
 
 Postman test for refresh flow:
 

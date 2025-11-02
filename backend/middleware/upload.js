@@ -2,22 +2,13 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 
-// Ensure upload directory exists
+// Keep local folders for backward-compat/static hosting (not used for new uploads to Cloudinary)
 const uploadRoot = path.join(__dirname, '..', 'uploads');
 const avatarDir = path.join(uploadRoot, 'avatars');
 try { fs.mkdirSync(avatarDir, { recursive: true }); } catch {}
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, avatarDir);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname || '').toLowerCase();
-    const safeBase = (path.basename(file.originalname || 'avatar', ext).replace(/[^a-z0-9_-]/gi, '_') || 'avatar');
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `${safeBase}-${unique}${ext || '.png'}`);
-  }
-});
+// Use memory storage so we can process with Sharp before uploading to Cloudinary
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   if (/^image\/(jpeg|png|gif|webp|svg\+xml)$/.test(file.mimetype)) cb(null, true);
