@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../api";
 
 const _envApi = process.env.REACT_APP_API_URL;
 const API_BASE = _envApi ? _envApi.replace(/\/$/, "") : (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : '');
@@ -26,7 +26,7 @@ export default function ResetPassword({ initialToken, onDone }) {
     if (password !== confirm) { setMessage("Nhập lại mật khẩu không khớp"); return; }
     setLoading(true);
     try {
-      const res = await axios.post(`${API_BASE}/reset-password`, { token, password });
+  const res = await api.post(`/reset-password`, { token, password });
       setMessage(res.data?.message || "Đổi mật khẩu thành công");
       setTimeout(() => onDone?.(), 1200);
     } catch (err) {

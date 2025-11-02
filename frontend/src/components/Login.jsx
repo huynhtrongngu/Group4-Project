@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
-
-const _envApi = process.env.REACT_APP_API_URL;
-const API_BASE = _envApi ? _envApi.replace(/\/$/, "") : (process.env.NODE_ENV === "development" ? "http://localhost:3000" : "");
+import api, { API_BASE } from "../api";
 
 export default function Login({ onLoggedIn, prefillEmail, onForgot }) {
   const rememberedEmail = useMemo(() => {
@@ -35,7 +32,7 @@ export default function Login({ onLoggedIn, prefillEmail, onForgot }) {
     setFeedback({ text: "", tone: "" });
     try {
       const payload = { email: form.email, password: form.password };
-      const res = await axios.post(`${API_BASE}/login`, payload);
+  const res = await api.post(`/login`, payload);
       const token = res.data?.token;
       const user = res.data?.user;
       if (token) localStorage.setItem('token', token);
