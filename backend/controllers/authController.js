@@ -4,6 +4,9 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 const { sendMail } = require('../utils/email');
+const { signAccessToken, signRefreshToken, verifyRefreshToken, REFRESH_TOKEN_EXPIRES_IN } = require('../utils/jwt');
+const RefreshToken = require('../models/RefreshToken');
+const { revokeAccessJti } = require('../middleware/tokenBlacklist');
 
 // Reuse the database service by connecting to the same MongoDB here (simple setup)
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/group4_project';
@@ -19,7 +22,35 @@ if (mongoose.connection.readyState === 0) {
 const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
+const ACCESS_TOKEN_EXPIRES_IN = process.env.ACCESS_TOKEN_EXPIRES_IN || '15m';
+const REFRESH_COOKIE_NAME = process.env.REFRESH_COOKIE_NAME || 'refreshToken';
+const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production';
+
+function setRefreshCookie(res, token) {
+  // Narrow the cookie path to refresh/logout endpoints if desired. Here use '/'
+  res.cookie(REFRESH_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: COOKIE_SECURE,
+    path: '/',
+    // Max-Age roughly equals REFRESH_TOKEN_EXPIRES_IN; fallback to 7d
+    maxAge: parseExpiryToMs(REFRESH_TOKEN_EXPIRES_IN) || 7 * 24 * 60 * 60 * 1000,
+  });
+}
+
+function clearRefreshCookie(res) {
+  res.clearCookie(REFRESH_COOKIE_NAME, { httpOnly: true, sameSite: 'lax', secure: COOKIE_SECURE, path: '/' });
+}
+
+function parseExpiryToMs(exp) {
+  if (!exp || typeof exp !== 'string') return 0;
+  const m = exp.match(/^(\d+)([smhdw])$/i);
+  if (!m) return 0;
+  const n = Number(m[1]);
+  const unit = m[2].toLowerCase();
+  const map = { s: 1000, m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000, w: 7 * 24 * 60 * 60 * 1000 };
+  return n * (map[unit] || 0);
+}
 
 // POST /signup
 async function signup(req, res) {
@@ -68,7 +99,23 @@ async function login(req, res) {
     const ok = await bcrypt.compare(String(password), user.passwordHash || '');
     if (!ok) return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng' });
 
-    const token = jwt.sign({ sub: user._id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    // Issue tokens
+    const { token: accessToken, jti: accessJti } = signAccessToken({ sub: user._id, role: user.role });
+    const { token: refreshToken, jti: refreshJti } = signRefreshToken({ sub: user._id });
+
+    // Persist refresh token hash
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const expiresAt = new Date(Date.now() + parseExpiryToMs(REFRESH_TOKEN_EXPIRES_IN) || 7 * 24 * 60 * 60 * 1000);
+    await RefreshToken.create({
+      user: user._id,
+      tokenHash,
+      ip: req.ip,
+      userAgent: req.get('user-agent') || '',
+      expiresAt,
+    });
+
+    // Set cookie
+    setRefreshCookie(res, refreshToken);
     const safeUser = {
       _id: user._id,
       name: user.name,
@@ -78,7 +125,7 @@ async function login(req, res) {
       bio: user.bio || '',
       avatarUrl: user.avatarUrl || '',
     };
-    return res.json({ message: 'Đăng nhập thành công', token, user: safeUser });
+    return res.json({ message: 'Đăng nhập thành công', token: accessToken, user: safeUser });
   } catch (err) {
     console.error('[login] error', err);
     return res.status(500).json({ message: 'Lỗi server', error: err.message });
@@ -87,11 +134,87 @@ async function login(req, res) {
 
 // POST /logout (stateless JWT: instruct client to delete token)
 async function logout(req, res) {
-  // In a real app, consider token blacklist. For now, client should remove token.
-  return res.json({ message: 'Đăng xuất thành công. Hãy xóa token ở phía client.' });
+  try {
+    // Revoke refresh token from cookie if present
+    const refreshTokenRaw = req.cookies?.[REFRESH_COOKIE_NAME] || String(req.headers['x-refresh-token'] || '');
+    if (refreshTokenRaw) {
+      try {
+        const payload = verifyRefreshToken(refreshTokenRaw);
+        const tokenHash = crypto.createHash('sha256').update(refreshTokenRaw).digest('hex');
+        await RefreshToken.updateOne({ user: payload.sub, tokenHash, isRevoked: false }, { $set: { isRevoked: true } });
+      } catch {}
+    }
+    // Revoke current access token jti if available (best-effort)
+    const authHeader = String(req.headers.authorization || '');
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const access = match ? match[1] : null;
+    if (access) {
+      try {
+        const decoded = jwt.decode(access, { complete: false }) || {};
+        const expSec = decoded?.exp ? decoded.exp : null;
+        const jti = decoded?.jti;
+        if (jti && expSec) {
+          revokeAccessJti(jti, new Date(expSec * 1000));
+        }
+      } catch {}
+    }
+    clearRefreshCookie(res);
+    return res.json({ message: 'Đăng xuất thành công' });
+  } catch (err) {
+    console.error('[logout] error', err);
+    return res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
 }
 
-module.exports = { signup, login, logout };
+// POST /refresh
+async function refresh(req, res) {
+  try {
+    const refreshTokenRaw = req.cookies?.[REFRESH_COOKIE_NAME] || String(req.headers['x-refresh-token'] || '');
+    if (!refreshTokenRaw) return res.status(401).json({ message: 'Thiếu refresh token' });
+
+    let payload;
+    try {
+      payload = verifyRefreshToken(refreshTokenRaw);
+    } catch (err) {
+      const msg = err?.name === 'TokenExpiredError' ? 'Refresh token đã hết hạn' : 'Refresh token không hợp lệ';
+      return res.status(401).json({ message: msg });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(refreshTokenRaw).digest('hex');
+    const record = await RefreshToken.findOne({ user: payload.sub, tokenHash, isRevoked: false });
+    if (!record) return res.status(401).json({ message: 'Refresh token không hợp lệ hoặc đã bị thu hồi' });
+    if (record.expiresAt && record.expiresAt.getTime() < Date.now()) {
+      return res.status(401).json({ message: 'Refresh token đã hết hạn' });
+    }
+
+    // Rotate: revoke current and issue a new refresh token
+    await RefreshToken.updateOne({ _id: record._id }, { $set: { isRevoked: true } });
+
+    const { token: newRefresh, jti: newRefreshJti } = signRefreshToken({ sub: payload.sub });
+    const newHash = crypto.createHash('sha256').update(newRefresh).digest('hex');
+    const expiresAt = new Date(Date.now() + parseExpiryToMs(REFRESH_TOKEN_EXPIRES_IN) || 7 * 24 * 60 * 60 * 1000);
+    await RefreshToken.create({
+      user: payload.sub,
+      tokenHash: newHash,
+      ip: req.ip,
+      userAgent: req.get('user-agent') || '',
+      expiresAt,
+    });
+
+    // New access token
+    const { token: accessToken } = signAccessToken({ sub: payload.sub });
+
+    // Set new cookie
+    setRefreshCookie(res, newRefresh);
+
+    return res.json({ token: accessToken });
+  } catch (err) {
+    console.error('[refresh] error', err);
+    return res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
+}
+
+module.exports = { signup, login, logout, refresh };
 // --- Forgot/Reset Password ---
 async function forgotPassword(req, res) {
   try {
