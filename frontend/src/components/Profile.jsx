@@ -344,7 +344,7 @@ export default function Profile({ currentUser, onProfileChange, onAuthError }) {
             try {
               const fd = new FormData();
               fd.append('avatar', avatarFile);
-              const res = await api.post(`/upload-avatar`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+              const res = await api.post(`/users/avatar`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
               const url = res.data?.avatarUrl;
               if (url) {
                 const updated = { ...(profile||{}), avatarUrl: url };
