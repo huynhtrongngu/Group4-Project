@@ -1,7 +1,6 @@
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
+const { verifyAccessToken } = require('../utils/jwt');
+const { isAccessJtiRevoked } = require('./tokenBlacklist');
 
 /**
  * Middleware xác thực JWT đơn giản dựa trên header Authorization: Bearer <token>
@@ -19,10 +18,14 @@ async function requireAuth(req, res, next) {
 
     let payload;
     try {
-      payload = jwt.verify(token, JWT_SECRET);
+      payload = verifyAccessToken(token);
     } catch (err) {
       const message = err?.name === 'TokenExpiredError' ? 'Token đã hết hạn' : 'Token không hợp lệ';
       return res.status(401).json({ message });
+    }
+
+    if (isAccessJtiRevoked(payload?.jti)) {
+      return res.status(401).json({ message: 'Token đã bị thu hồi' });
     }
 
     const user = await User.findById(payload?.sub);

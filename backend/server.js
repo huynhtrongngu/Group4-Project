@@ -3,10 +3,23 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 const app = express();
 
-app.use(cors());
+const FRONTEND_URLS = (process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:3000,http://localhost:3001')
+	.split(',')
+	.map((s) => s.trim().replace(/\/$/, ''));
+app.use(cors({
+	origin: (origin, callback) => {
+		// Allow requests with no origin (like mobile apps or same-origin/proxy)
+		if (!origin) return callback(null, true);
+		const ok = FRONTEND_URLS.includes(origin);
+		return callback(ok ? null : new Error('Not allowed by CORS'), ok);
+	},
+	credentials: true,
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 // Connect to MongoDB at server start
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/group4_project';
