@@ -38,6 +38,11 @@ async function updateProfile(req, res) {
       return res.status(401).json({ message: 'Chưa đăng nhập' });
     }
 
+    // Moderator is view-only: cannot modify profile
+    if (String(user.role) === 'moderator') {
+      return res.status(403).json({ message: 'Moderator không được chỉnh sửa thông tin' });
+    }
+
   const { name, email, password, phone, bio } = req.body || {};
     const updates = {};
 

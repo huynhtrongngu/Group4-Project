@@ -6,11 +6,18 @@ Routes:
 - POST /logout: -> 200 { message } and clears HttpOnly cookie, refresh token revoked
 - POST /refresh (alias: /auth/refresh): -> 200 { token } issues a new access token and rotates refresh cookie
 
-User management endpoints (Admin):
-- GET /users -> 200 list of users (requires Bearer token of an admin)
-- POST /users -> 201 create a user (public, role can be 'admin' or 'user')
-- PUT /users/:id -> 200 update user (requires auth; admin or the user themself)
-- DELETE /users/:id -> 200 delete user (requires auth; admin or the user themself)
+Roles & permissions:
+- Roles: user, moderator, admin
+- checkRole middleware protects endpoints; hierarchy is not implicit, we explicitly allow roles per route.
+
+User management endpoints (RBAC):
+- GET /users -> 200 list users (requires Bearer token of an admin OR moderator)
+- POST /users -> 201 create a user (admin only)
+- PUT /users/:id -> 200 update (admin or moderator, or the user themself)
+	- Only admin may change a user's role
+	- Moderator cannot modify admin accounts
+- DELETE /users/:id -> 200 delete (admin or moderator, or the user themself)
+	- Moderator cannot delete admin accounts
 
 Postman / quick test (happy path):
 1. Create an admin account via POST /signup with body { name, email, password, role: 'admin' }.
@@ -38,6 +45,13 @@ Env (.env):
 - COOKIE_SECURE=false  # set true in production (HTTPS)
 
 Postman test for refresh flow:
+
+Seeding sample users:
+- Run: `npm run seed` inside backend folder
+- It creates accounts (password 123456):
+	- admin@example.com (admin)
+	- mod@example.com (moderator)
+	- user@example.com (user)
 1) POST /signup (if needed):
 	Body (JSON): { "name": "Alice", "email": "alice@example.com", "password": "secret123" }
 2) POST /login:
